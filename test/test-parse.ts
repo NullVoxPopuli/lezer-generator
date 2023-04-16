@@ -670,3 +670,43 @@ describe("mixed languages", () => {
     ist(tree2.toString(), "Doc(Section(Phrase),Section(Phrase))")
   })
 })
+
+describe("error reporting", () => {
+  it('reports an error for conflicting rules', () => {
+
+    ist.throws(
+      () => {
+        buildParser(`
+@top Document { (entity)* }
+
+entity[@isGroup=Entity] {
+  Text |
+  identifier
+}
+
+@tokens {
+  identifierChar { @asciiLetter | $[_$\u{a1}-\u{10ffff}] }
+  word { identifierChar (identifierChar | @digit)* }
+
+  identifier { word }
+  Text[group=TextContent] { ![<&{]+ }
+}
+`);
+      },
+      (error) => {
+        let msg = error.message;
+
+        let intro = msg.includes('Overlapping tokens Text and identifier used in same context')
+        let suggestions = msg.includes('You may resolve this conflict by declaring');
+
+        let result = intro && suggestions;
+
+        if (!result) {
+          console.debug({ intro, suggestions });
+        }
+
+        return result;
+      }
+    );
+  });
+});
